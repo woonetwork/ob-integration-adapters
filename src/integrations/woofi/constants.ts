@@ -1,0 +1,23 @@
+import type { Address } from "viem";
+
+export const ROUTER_ADDRESS: Address =
+	"0x4c4AF8DBc524681930a27b2F1Af5bcC8062E6fB7";
+
+export const POOL_ADDRESS: Address =
+	"0x5520385bFcf07Ec87C4c53A7d8d65595Dff69FA4";
+
+export const ORACLE_ADDRESS: Address =
+	"0x2A375567f5E13F6bd74fDa7627Df3b1Af6BfA5a6";
+
+export const INTEGRATION_HELPER_ADDRESS: Address =
+	"0x14B435b68e031226ACc4d328a69e294686C3176e";
+
+export const QUOTE_TOKEN_ADDRESS: Address =
+	"0x549943e04f40284185054145c6E4e9568C1D3241";
+
+export const USER_ADDRESS_PLACEHOLDER: Address =
+	"0x0000000000000000000000000000000000000001";
+
+export const QUOTE_TOKEN_DECIMALS: bigint = 6n;
+
+export const ORACLE_PRICE_DECIMALS: bigint = 8n;
