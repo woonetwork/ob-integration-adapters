@@ -208,7 +208,7 @@ export class WOOFiPoolMath extends BasePoolMath<WOOFiPoolState> {
             baseAmount, baseMaxGamma, baseMaxNotionalSwap, basePrice, baseSpread, baseCoeff, baseWoFeasible, baseDecimals
         );
 
-        let quoteAmount = quoteAmountAfterFee / (this.BASE_FEE_RATE - baseFeeRate) / this.BASE_FEE_RATE;
+        let quoteAmount = quoteAmountAfterFee * this.BASE_FEE_RATE / (this.BASE_FEE_RATE - baseFeeRate);
 
         return quoteAmount;
     }
@@ -225,7 +225,7 @@ export class WOOFiPoolMath extends BasePoolMath<WOOFiPoolState> {
         let baseWoFeasible = zeroToOne ? pool.woFeasible0 : pool.woFeasible1;
         let baseDecimals = zeroToOne ? pool.decimals0 : pool.decimals1;
 
-        let quoteAmount = quoteAmountAfterFee / (this.BASE_FEE_RATE - baseFeeRate) / this.BASE_FEE_RATE;
+        let quoteAmount = quoteAmountAfterFee * this.BASE_FEE_RATE / (this.BASE_FEE_RATE - baseFeeRate);
 
         return this.calcQuoteAmountSellBaseOutput(
             quoteAmount, baseMaxGamma, baseMaxNotionalSwap, basePrice, baseSpread, baseCoeff, baseWoFeasible, baseDecimals
@@ -249,7 +249,7 @@ export class WOOFiPoolMath extends BasePoolMath<WOOFiPoolState> {
         let quoteAmountAfterFee = this.calcBaseAmountSellQuoteOutput(
             base2Amount, base2MaxGamma, base2MaxNotionalSwap, base2Price, spread, base2Coeff, base2WoFeasible, base2Decimals
         );
-        let quoteAmount = quoteAmountAfterFee / (this.BASE_FEE_RATE - feeRate) / this.BASE_FEE_RATE;
+        let quoteAmount = quoteAmountAfterFee * this.BASE_FEE_RATE / (this.BASE_FEE_RATE - feeRate);
 
         let base1Amount = this.calcQuoteAmountSellBaseOutput(
             quoteAmount, base1MaxGamma, base1MaxNotionalSwap, base1Price, spread, base1Coeff, base1WoFeasible, base1Decimals
@@ -276,21 +276,27 @@ export class WOOFiPoolMath extends BasePoolMath<WOOFiPoolState> {
         }
         
         let baseUnit = 10n ** 18n;
+        let qd = (10n ** QUOTE_TOKEN_DECIMALS);
+        let pd = (10n ** ORACLE_PRICE_DECIMALS);
+        let bd = (10n ** baseDecimals);
+
+        let scaler = 10n ** 36n;
+
+        let a = scaler * bd * pd * baseCoeff / basePrice / baseUnit / (qd ** 2n);
+        let b = scaler * bd * pd * (baseSpread - baseUnit) / basePrice / qd / baseUnit;
+        let c = scaler * baseAmount;
         
-        // delta = b ** 2 - 4ac
-        let delta = (
-            ((10n ** baseDecimals) * (10n ** ORACLE_PRICE_DECIMALS) * (10n ** QUOTE_TOKEN_DECIMALS) * (baseUnit - baseSpread)) ** 2n
-            - 4n * ((10n ** baseDecimals) * (10n ** ORACLE_PRICE_DECIMALS) * baseCoeff * baseAmount * baseUnit * basePrice * ((10n ** QUOTE_TOKEN_DECIMALS) ** 2n))
-        )
-        console.log(`delta: ${delta}`);
+        let delta = b ** 2n - 4n * a * c;
         
         if (delta < 0n) {
             throw new Error("WOOFiSwapLib: DeltaLessThanZero");
         }
         
-        let x1 = ((baseSpread - baseUnit) * (10n ** QUOTE_TOKEN_DECIMALS) + this.sqrt(delta)) / -2n * baseCoeff;
-        let x2 = ((baseSpread - baseUnit) * (10n ** QUOTE_TOKEN_DECIMALS) - this.sqrt(delta)) / -2n * baseCoeff;
-        let quoteAmountAfterFee = x1 >= x2 ? x1 : x2
+        let x1 = (-b + this.sqrt(delta)) / (2n * a);
+        let x2 = (-b - this.sqrt(delta)) / (2n * a);
+
+        let notionalValueWithQD = basePrice * baseAmount * qd / pd / bd;
+        let quoteAmountAfterFee = this.abs(x1 - notionalValueWithQD) < this.abs(x2 - notionalValueWithQD) ? x1 : x2;
         
         if (quoteAmountAfterFee < 0n) {
             throw new Error("WOOFiSwapLib: ResultLessThanZero");
@@ -326,19 +332,30 @@ export class WOOFiPoolMath extends BasePoolMath<WOOFiPoolState> {
         }
 
         let baseUnit = 10n ** 18n;
+        let qd = (10n ** QUOTE_TOKEN_DECIMALS);
+        let pd = (10n ** ORACLE_PRICE_DECIMALS);
+        let bd = (10n ** baseDecimals);
 
-        // delta = b ** 2 - 4ac
-        let delta = ((basePrice * (10n ** QUOTE_TOKEN_DECIMALS) * (baseUnit - baseSpread) * (10n ** ORACLE_PRICE_DECIMALS) * (10n ** baseDecimals)) ** 2n)
-            - (4n * (basePrice ** 2n) * (10n ** QUOTE_TOKEN_DECIMALS) * baseCoeff * quoteAmount * baseUnit * (10n ** baseDecimals) * (10n ** ORACLE_PRICE_DECIMALS));
+        let scaler = 10n ** 36n;
+
+        let a = scaler * (basePrice ** 2n) * qd * baseCoeff / (pd ** 2n) / bd;
+        let b = scaler * basePrice * qd * (baseSpread - baseUnit) / pd;
+        let c = scaler * quoteAmount * baseUnit * bd;
+
+        let delta = b ** 2n - 4n * a * c;
         
         if (delta < 0n) {
             throw new Error("WOOFiSwapLib: DeltaLessThanZero");
         }
-        
-        let x1 = ((basePrice * (10n ** QUOTE_TOKEN_DECIMALS) * (baseUnit - baseSpread) * (10n ** ORACLE_PRICE_DECIMALS) * (10n ** baseDecimals)) + this.sqrt(delta)) / (2n * (basePrice ** 2n) * (10n ** QUOTE_TOKEN_DECIMALS) * baseCoeff);
-        let x2 = ((basePrice * (10n ** QUOTE_TOKEN_DECIMALS) * (baseUnit - baseSpread) * (10n ** ORACLE_PRICE_DECIMALS) * (10n ** baseDecimals)) - this.sqrt(delta)) / (2n * (basePrice ** 2n) * (10n ** QUOTE_TOKEN_DECIMALS) * baseCoeff);
-        let baseAmount = x1 >= x2 ? x1 : x2;
-        
+
+        let x1 = (-b + this.sqrt(delta)) / (2n * a);
+        let x2 = (-b - this.sqrt(delta)) / (2n * a);
+
+        let notionalValueWithQD1 = basePrice * x1 * qd / pd / bd;
+        let notionalValueWithQD2 = basePrice * x2 * qd / pd / bd;
+
+        let baseAmount = this.abs(notionalValueWithQD1 - quoteAmount) < this.abs(notionalValueWithQD2 - quoteAmount) ? x1 : x2;
+
         if (baseAmount < 0n) {
             throw new Error("WOOFiSwapLib: ResultLessThanZero");
         }
@@ -378,6 +395,10 @@ export class WOOFiPoolMath extends BasePoolMath<WOOFiPoolState> {
         }
 
         return high;
+    }
+
+    private abs(x: bigint): bigint {
+        return x < 0n ? -x : x;
     }
 
     override spotPriceWithoutFee(

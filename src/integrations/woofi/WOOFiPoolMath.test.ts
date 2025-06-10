@@ -44,17 +44,17 @@ describe("WOOFiPoolMath", () => {
         );
     });
 
-    // test("swapExactOutput zeroToOne", () => {
-        // expect(poolMath.swapExactOutput(poolState, true, parseEther("10"))).toBe(
-        //     parseEther("5.277044854881266492"),
-        // );
-    // });
+    test("swapExactOutput zeroToOne", () => {
+        expect(poolMath.swapExactOutput(poolState, true, parseUnits("1", 8))).toBe(
+            parseEther("52.711323470852160847"),
+        );
+    });
 
-    // test("swapExactOutput oneToZero", () => {
-    //     expect(poolMath.swapExactOutput(poolState, false, parseEther("10"))).toBe(
-    //         parseEther("22.284122562674094710"),
-    //     );
-    // });
+    test("swapExactOutput oneToZero", () => {
+        expect(poolMath.swapExactOutput(poolState, false, parseEther("10"))).toBe(
+            parseUnits("0.19067625", 8),
+        );
+    });
 
     test("spotPriceWithoutFee zeroToOne", () => {
         expect(poolMath.spotPriceWithoutFee(poolState, true)).toBe(0.01897695);
