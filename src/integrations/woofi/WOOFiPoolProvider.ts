@@ -15,6 +15,7 @@ import {
     POOL_ADDRESS,
     ORACLE_ADDRESS,
     INTEGRATION_HELPER_ADDRESS,
+    QUOTE_TOKEN_ADDRESS,
     USER_ADDRESS_PLACEHOLDER,
 } from "./constants";
 
@@ -34,7 +35,7 @@ interface State {
 }
 
 export class WOOFiPoolProvider extends BasePoolStateProvider<WOOFiPoolState> {
-    readonly abi = [];
+    readonly abi = [...PoolABI];
 
     async getAllPools(): Promise<WOOFiPoolState[]> {
         const [quoteToken, baseTokens] = await this.client.readContract({
@@ -149,10 +150,68 @@ export class WOOFiPoolProvider extends BasePoolStateProvider<WOOFiPoolState> {
         });
     }
 
-    /**
-     * @dev There is only one pool, therefore no need to implement this function.
-     */
     async handleEvent(
         log: WatchContractEventOnLogsParameter<typeof this.abi>[number],
-    ): Promise<void> {}
+    ): Promise<void> {
+        if (!log.address) {
+			return;
+		}
+
+        switch (log.eventName) {
+            case "WooSwap": {
+                const args = log.args as {
+                    fromToken: Address;
+                    toToken: Address;
+                    fromAmount: bigint;
+                    toAmount: bigint;
+                    from: Address;
+                    to: Address;
+                    rebateTo: Address;
+                    swapVol: bigint;
+                    swapFee: bigint;
+                };
+                const poolState = this.pools.get(log.address);
+				if (!poolState) return;
+                if (args.fromToken === QUOTE_TOKEN_ADDRESS) {
+                    if (args.fromToken === poolState.token0) {
+                        poolState.reserve0 = poolState.reserve0 + args.fromAmount - args.swapFee;
+                    } else if (args.fromToken === poolState.token1) {
+                        poolState.reserve1 = poolState.reserve1 + args.fromAmount - args.swapFee;
+                    }
+
+                    if (args.toToken === poolState.token0) {
+                        poolState.reserve0 = poolState.reserve0 - args.toAmount;
+                    } else if (args.toToken === poolState.token1) {
+                        poolState.reserve1 = poolState.reserve1 - args.toAmount;
+                    }
+                } else if (args.toToken === QUOTE_TOKEN_ADDRESS) {
+                    if (args.fromToken === poolState.token0) {
+                        poolState.reserve0 = poolState.reserve0 + args.fromAmount;
+                    } else if (args.fromToken === poolState.token1) {
+                        poolState.reserve1 = poolState.reserve1 + args.fromAmount;
+                    }
+
+                    if (args.toToken === poolState.token0) {
+                        poolState.reserve0 = poolState.reserve0 - args.toAmount - args.swapFee;
+                    } else if (args.toToken === poolState.token1) {
+                        poolState.reserve1 = poolState.reserve1 - args.toAmount - args.swapFee;
+                    }
+                } else {
+                    if (args.fromToken === poolState.token0) {
+                        poolState.reserve0 = poolState.reserve0 + args.fromAmount;
+                    } else if (args.fromToken === poolState.token1) {
+                        poolState.reserve1 = poolState.reserve1 + args.fromAmount;
+                    }
+
+                    if (args.toToken === poolState.token0) {
+                        poolState.reserve0 = poolState.reserve0 - args.toAmount;
+                    } else if (args.toToken === poolState.token1) {
+                        poolState.reserve1 = poolState.reserve1 - args.toAmount;
+                    }
+                }
+				this.pools.set(log.address, poolState);
+				return;
+            }
+        }
+    }
 }
