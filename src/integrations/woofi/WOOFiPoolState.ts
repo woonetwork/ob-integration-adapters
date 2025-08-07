@@ -19,4 +19,5 @@ export interface WOOFiPoolState extends BasePoolState {
     woFeasible1: boolean;
     decimals0: bigint;
     decimals1: bigint;
+    quoteReserve: bigint;
 }

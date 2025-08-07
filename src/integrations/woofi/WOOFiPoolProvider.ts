@@ -46,6 +46,7 @@ export class WOOFiPoolProvider extends BasePoolStateProvider<WOOFiPoolState> {
         });
         const tokens = [...baseTokens, quoteToken];
         const tokenInfos = await this.getTokenInfos(tokens);
+        const quoteReserve = tokenInfos[tokenInfos.length - 1]?.reserve ?? 0n;
         const states = await this.getStates(tokens);
         const decimals = await this.getDecimals(tokens);
 
@@ -76,6 +77,7 @@ export class WOOFiPoolProvider extends BasePoolStateProvider<WOOFiPoolState> {
                     woFeasible1: states[j]?.woFeasible ?? false,
                     decimals0: decimals[i] ?? 0n,
                     decimals1: decimals[j] ?? 0n,
+                    quoteReserve: quoteReserve,
                 });
             }
         }

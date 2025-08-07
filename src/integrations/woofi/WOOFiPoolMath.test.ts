@@ -29,7 +29,7 @@ describe("WOOFiPoolMath", () => {
         woFeasible1: true,
         decimals0: 18n,
         decimals1: 8n,
-
+        quoteReserve: 1000000000n,
     };
 
     test("swapExactInput zeroToOne", () => {

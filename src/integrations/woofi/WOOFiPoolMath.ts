@@ -45,6 +45,11 @@ export class WOOFiPoolMath extends BasePoolMath<WOOFiPoolState> {
             quoteAmountAfterFee, baseMaxGamma, baseMaxNotionalSwap, basePrice, baseSpread, baseCoeff, baseWoFeasible, baseDecimals
         );
 
+        let baseReserve = zeroToOne ? pool.reserve1 : pool.reserve0;
+        if (baseAmount > baseReserve) {
+            throw new Error("WOOFiSwapLib: InsufficientBaseReserve");
+        }
+
         return baseAmount;
     }
 
@@ -63,6 +68,11 @@ export class WOOFiPoolMath extends BasePoolMath<WOOFiPoolState> {
         let quoteAmount = this.calcQuoteAmountSellBaseInput(
             baseAmount, baseMaxGamma, baseMaxNotionalSwap, basePrice, baseSpread, baseCoeff, baseWoFeasible, baseDecimals
         );
+
+        let quoteReserve = zeroToOne ? pool.reserve1 : pool.reserve0;
+        if (quoteAmount > quoteReserve) {
+            throw new Error("WOOFiSwapLib: InsufficientQuoteReserve");
+        }
 
         let swapFee = quoteAmount * baseFeeRate / this.BASE_FEE_RATE;
         return quoteAmount - swapFee;
@@ -87,11 +97,20 @@ export class WOOFiPoolMath extends BasePoolMath<WOOFiPoolState> {
         );
 
         let swapFee = quoteAmount * feeRate / this.BASE_FEE_RATE;
+        if (swapFee > pool.quoteReserve) {
+            throw new Error("WOOFiSwapLib: InsufficientQuoteReserveAsSwapFee");
+        }
+
         let quoteAmountAfterFee = quoteAmount - swapFee;
 
         let base2Amount = this.calcBaseAmountSellQuoteInput(
             quoteAmountAfterFee, base2MaxGamma, base2MaxNotionalSwap, base2Price, spread, base2Coeff, base2WoFeasible, base2Decimals
         );
+
+        let base2Reserve = zeroToOne ? pool.reserve1 : pool.reserve0;
+        if (base2Amount > base2Reserve) {
+            throw new Error("WOOFiSwapLib: InsufficientBase2Reserve");
+        }
 
         return base2Amount;
     }
@@ -193,6 +212,11 @@ export class WOOFiPoolMath extends BasePoolMath<WOOFiPoolState> {
     }
 
     private sellQuoteOutput(pool: WOOFiPoolState, zeroToOne: boolean, baseAmount: bigint) {
+        let baseReserve = zeroToOne ? pool.reserve1 : pool.reserve0;
+        if (baseAmount > baseReserve) {
+            throw new Error("WOOFiSwapLib: InsufficientBaseReserve");
+        }
+
         let baseFeeRate = zeroToOne ? pool.feeRate1 : pool.feeRate0;
         let baseMaxGamma = zeroToOne ? pool.maxGamma1 : pool.maxGamma0;
         let baseMaxNotionalSwap = zeroToOne ? pool.maxNotionalSwap1 : pool.maxNotionalSwap0;
@@ -227,12 +251,22 @@ export class WOOFiPoolMath extends BasePoolMath<WOOFiPoolState> {
 
         let quoteAmount = quoteAmountAfterFee * this.BASE_FEE_RATE / (this.BASE_FEE_RATE - baseFeeRate);
 
+        let quoteReserve = zeroToOne ? pool.reserve1 : pool.reserve0;
+        if (quoteAmount > quoteReserve) {
+            throw new Error("WOOFiSwapLib: InsufficientQuoteReserve");
+        }
+
         return this.calcQuoteAmountSellBaseOutput(
             quoteAmount, baseMaxGamma, baseMaxNotionalSwap, basePrice, baseSpread, baseCoeff, baseWoFeasible, baseDecimals
         );
     }
 
     private swapBaseToBaseOutput(pool: WOOFiPoolState, zeroToOne: boolean, base2Amount: bigint) {
+        let base2Reserve = zeroToOne ? pool.reserve1 : pool.reserve0;
+        if (base2Amount > base2Reserve) {
+            throw new Error("WOOFiSwapLib: InsufficientBase2Reserve");
+        }
+        
         let [base1FeeRate, base2FeeRate] = zeroToOne ? [pool.feeRate0, pool.feeRate1] : [pool.feeRate1, pool.feeRate0];
         let [base1MaxGamma, base2MaxGamma] = zeroToOne ? [pool.maxGamma0, pool.maxGamma1] : [pool.maxGamma1, pool.maxGamma0];
         let [base1MaxNotionalSwap, base2MaxNotionalSwap] = zeroToOne ? [pool.maxNotionalSwap0, pool.maxNotionalSwap1] : [pool.maxNotionalSwap1, pool.maxNotionalSwap0];
@@ -250,6 +284,10 @@ export class WOOFiPoolMath extends BasePoolMath<WOOFiPoolState> {
             base2Amount, base2MaxGamma, base2MaxNotionalSwap, base2Price, spread, base2Coeff, base2WoFeasible, base2Decimals
         );
         let quoteAmount = quoteAmountAfterFee * this.BASE_FEE_RATE / (this.BASE_FEE_RATE - feeRate);
+        let swapFee = quoteAmount - quoteAmountAfterFee;
+        if (swapFee > pool.quoteReserve) {
+            throw new Error("WOOFiSwapLib: InsufficientQuoteReserveAsSwapFee");
+        }
 
         let base1Amount = this.calcQuoteAmountSellBaseOutput(
             quoteAmount, base1MaxGamma, base1MaxNotionalSwap, base1Price, spread, base1Coeff, base1WoFeasible, base1Decimals
